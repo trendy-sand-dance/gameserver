@@ -1,5 +1,5 @@
 services:
-  fastify-app:
+  gameserver:
     build:
       context: .
       target: development

@@ -1,20 +1,23 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { WebSocket } from '@fastify/websocket';
+const DATABASE_URL = 'http://database_container:3000';
 
+
+export interface Vector2 {
+  x: number;
+  y: number;
+}
 
 let clients = new Set<WebSocket>();
-
-let gameState = {
-  players: {},
-}
+let players = new Map<string, Vector2>();
 
 function generateRandomPlayer(w, h) {
   return {
     id: (Math.random() * 100).toString(32).substr(3, 8),
     position: {
-      x: Math.floor(Math.random() * w),
+      x: 37,
       // y: Math.floor(Math.random() * h)
-      y: 2
+      y: 24
     }
   };
 }
@@ -30,10 +33,10 @@ function broadcast(message) {
 
 export async function wsGameController(client: WebSocket, request: FastifyRequest) {
   // Generate playerId and generate random spawn position
-  const player = generateRandomPlayer(32, 32);
-  console.log("New connection: ", player);
+  // const player = generateRandomPlayer(32, 32);
+  // console.log("New connection: ", player);
   // Add new player to gamestate object and clients Set
-  // gameState.players[player.id] = player.position;
+  // players[player.id] = player.position;
   clients.add(client);
   client.send('hi from server');
 
@@ -50,8 +53,33 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
 
   client.on('message', message => {
     const data = JSON.parse(message.toString());
+    console.log("(On message) Server received: ", data);
 
-    console.log("Server received: ", data);
+    if (data.type === "newConnection") {
+      const username = data.username as string;
+      console.log("Username: ", username);
+
+      fetch(`${DATABASE_URL}/game/players/${username}`, {
+        method: 'GET'
+      }).then((value) => {
+        console.log(value.json().then((value) => {
+          console.log("value", value);
+        }));
+      });
+      // players[username] = { x: 37, y: 24 };
+    }
+
+    if (data.type === "disconnection") {
+      const username = data.username as string;
+      const position: { x, y } = data.position;
+
+      fetch(`${DATABASE_URL}/game/players/${username}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(position)
+      });
+
+    }
 
     // if (data.type == "move") {
     //   gameState.players[data.id].position = data.position;
@@ -62,16 +90,29 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
     // }
   });
 
-  // client.on('close', message => {
-  //   console.log(`Client ${player.id} closed`);
-  //
-  //   broadcast({
-  //     type: "disconnectPlayer",
-  //     id: player.id
-  //   });
-  //
-  //   clients.delete(client);
-  //   delete gameState.players[player.id];
-  // });
+  client.on('close', message => {
+    const data = JSON.parse(message.toString());
+    console.log("(On close) Server received: ", data);
+
+    if (data.type === "disconnection") {
+      const username = data.username as string;
+      const position: { x, y } = data.position;
+
+      fetch(`${DATABASE_URL}/game/players/${username}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(position)
+      });
+
+    }
+
+    // console.log(`Client ${player.id} closed`);
+    // broadcast({
+    //   type: "disconnectPlayer",
+    //   id: player.id
+    // });
+    // clients.delete(client);
+    // delete gameState.players[player.id];
+  });
 
 };
