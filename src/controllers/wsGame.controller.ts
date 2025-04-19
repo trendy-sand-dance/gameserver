@@ -45,14 +45,30 @@ export async function addPlayer(request: FastifyRequest, reply: FastifyReply) {
 
   const { username } = request.params as { username: string };
   const userPackage = request.body as Player;
-  const randomPos = { x: Math.random() * 20, y: Math.random() * 20 }
-  console.log("randomPos: ", randomPos);
-
   console.log("Hey, received a userpackage!!!", userPackage);
 
-  players.set(userPackage.id, { x: randomPos.x, y: randomPos.y })
+  if (!players.get(userPackage.id)) {
+    if (userPackage.x === 0 && userPackage.y === 0) {
+      const randomPos = { x: Math.random() * 20, y: Math.random() * 20 }
+      console.log("randomPos: ", randomPos);
+      players.set(userPackage.id, { x: randomPos.x, y: randomPos.y })
+    } else {
+      players.set(userPackage.id, { x: userPackage.x, y: userPackage.y })
+    }
+  }
 
 
+};
+
+export async function removePlayer(request: FastifyRequest, reply: FastifyReply) {
+
+  const { id } = request.params as { id: number };
+
+  if (!players.get(id)) {
+
+    console.log("Attempting to delete player that doesn't exist in-memory");
+  }
+  players.delete(id);
 };
 
 
@@ -77,26 +93,29 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
   //   }
   // });
 
-  client.on('message', message => {
+  client.on('message', async (message) => {
     const data = JSON.parse(message.toString());
     console.log("(On message) Server received: ", data);
 
-    // if (data.type === "newConnection") {
-    console.log("Broadcasting initializePlayers", players);
-    broadcast({ type: "initializePlayers", players: Array.from(players.entries()) });
-    // }
+    if (data.type === "newConnection") {
+      console.log("Broadcasting initializePlayers", players);
+      broadcast({ type: "initializePlayers", players: Array.from(players.entries()) });
+    }
 
-    // if (data.type === "disconnection") {
-    //   const username = data.username as string;
-    //   const position: { x, y } = data.position;
-    //
-    //   fetch(`${DATABASE_URL}/game/players/${username}`, {
-    //     method: 'PUT',
-    //     headers: { 'Content-Type': 'application/json' },
-    //     body: JSON.stringify(position)
-    //   });
-    //
-    // }
+    if (data.type === "disconnection") {
+      const id = data.id as number;
+      const position = data.position as Vector2;
+
+      await fetch(`${DATABASE_URL}/game/players/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(position)
+      });
+
+      players.delete(id);
+    }
+
+
 
     // if (data.type == "move") {
     //   gameState.players[data.id].position = data.position;
@@ -107,21 +126,22 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
     // }
   });
 
-  // client.on('close', message => {
-  //   const data = JSON.parse(message.toString());
-  //   console.log("(On close) Server received: ", data);
-  //
-  //   if (data.type === "disconnection") {
-  //     const username = data.username as string;
-  //     const position: { x, y } = data.position;
-  //
-  //     fetch(`${DATABASE_URL}/game/players/${username}`, {
-  //       method: 'PUT',
-  //       headers: { 'Content-Type': 'application/json' },
-  //       body: JSON.stringify(position)
-  //     });
-  //
-  //   }
+  client.on('close', async (message) => {
+    const data = JSON.parse(message.toString());
+    console.log("(On close) Server received: ", data);
+
+    if (data.type === "disconnection") {
+      const id = data.id as number;
+      const position = data.position as Vector2;
+
+      await fetch(`${DATABASE_URL}/game/players/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(position)
+      });
+
+    }
+  });
 
   // console.log(`Client ${player.id} closed`);
   // broadcast({
