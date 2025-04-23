@@ -2,30 +2,18 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { WebSocket } from '@fastify/websocket';
 const DATABASE_URL = 'http://database_container:3000';
 
+let clients = new Set<WebSocket>();
+let players = new Map<number, Vector2>();
 
 export interface Vector2 {
   x: number;
   y: number;
 }
 
-let clients = new Set<WebSocket>();
-let players = new Map<number, Vector2>();
-
-function generateRandomPlayer(w, h) {
-  return {
-    id: (Math.random() * 100).toString(32).substr(3, 8),
-    position: {
-      x: 37,
-      // y: Math.floor(Math.random() * h)
-      y: 24
-    }
-  };
-}
-
-function broadcast(message) {
+function broadcast(message, currentClient) {
   clients.forEach((client) => {
 
-    if (client.readyState == 1) {
+    if (client.readyState == 1 && client !== currentClient) {
       client.send(JSON.stringify(message));
     }
   });
@@ -39,97 +27,128 @@ interface Player {
   y: number,
 }
 
-
-
 export async function addPlayer(request: FastifyRequest, reply: FastifyReply) {
 
   const { username } = request.params as { username: string };
   const userPackage = request.body as Player;
-  const randomPos = { x: Math.random() * 20, y: Math.random() * 20 }
-  console.log("randomPos: ", randomPos);
 
-  console.log("Hey, received a userpackage!!!", userPackage);
-
-  players.set(userPackage.id, { x: randomPos.x, y: randomPos.y })
+  if (!players.get(userPackage.id)) {
+    if (userPackage.x === 0 && userPackage.y === 0) {
+      players.set(userPackage.id, { x: 36, y: 23 })
+    } else {
+      players.set(userPackage.id, { x: userPackage.x, y: userPackage.y })
+    }
+  }
 
 
 };
 
+export async function removePlayer(request: FastifyRequest, reply: FastifyReply) {
 
+  const { id } = request.params as { id: number };
+
+  if (!players.get(id)) {
+
+    console.log("Attempting to delete player that doesn't exist in-memory");
+  }
+  players.delete(id);
+};
+
+
+async function syncPlayersDB() {
+  console.log("Syncing players...", players);
+  if (!players || players.size === 0)
+  {
+    console.log("Nothing to sync, no players...");
+    setTimeout(syncPlayersDB, 5000);
+    return;
+  }
+
+  try {
+
+    //TODO: sync players in a batch.
+    // const response = await fetch(`${DATABASE_URL}/game/players`, {
+    //   method: 'PUT',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify(players)
+    // });
+    // if (!response.ok)
+    // {
+    //   throw {code: 500, message: "Failed to upate user"};
+    // }
+
+    for (const [id, position] of players) 
+    {
+      const response = await fetch(`${DATABASE_URL}/game/players/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(position)
+      });
+      if (!response.ok)
+      {
+        throw {code: 500, message: "Failed to upate user"};
+      }
+    }
+    console.log("Succesfully synced players!");
+  } catch (error)
+  {
+      console.error(`sync db error`, error);
+  }
+  setTimeout(syncPlayersDB, 10000);
+}
+
+syncPlayersDB();
 
 export async function wsGameController(client: WebSocket, request: FastifyRequest) {
-  // Generate playerId and generate random spawn position
-  // const player = generateRandomPlayer(32, 32);
-  // console.log("New connection: ", player);
-  // Add new player to gamestate object and clients Set
-  // players[player.id] = player.position;
+
+
   clients.add(client);
-  client.send('hi from server');
+  let playerId : number = -1;
 
-  // Initialize player and players for newly connected client
-  // client.send(JSON.stringify({ type: "init", player, gameState }));
-  // broadcast({
-  //   type: "newPlayer",
-  //   id: player.id,
-  //   position: {
-  //     x: player.position.x,
-  //     y: player.position.y
-  //   }
-  // });
-
-  client.on('message', message => {
+  client.on('message', async (message) => {
     const data = JSON.parse(message.toString());
-    console.log("(On message) Server received: ", data);
 
-    // if (data.type === "newConnection") {
-    console.log("Broadcasting initializePlayers", players);
-    broadcast({ type: "initializePlayers", players: Array.from(players.entries()) });
-    // }
+    if (data.type === "newConnection") {
+      console.log("(On message) Server received: ", data);
+      playerId = data.id;
+      players.set(data.id, { x: data.position.x, y: data.position.y });
+      broadcast({ type: "newPlayer", id: data.id, username: data.username, avatar: data.avatar, position: data.position }, client);
+      if (client.readyState == 1) {
+        client.send(JSON.stringify({ type: "initializePlayers", players: Array.from(players.entries()) }));
+      }
+    }
 
-    // if (data.type === "disconnection") {
-    //   const username = data.username as string;
-    //   const position: { x, y } = data.position;
-    //
-    //   fetch(`${DATABASE_URL}/game/players/${username}`, {
-    //     method: 'PUT',
-    //     headers: { 'Content-Type': 'application/json' },
-    //     body: JSON.stringify(position)
-    //   });
-    //
-    // }
-
-    // if (data.type == "move") {
-    //   gameState.players[data.id].position = data.position;
-    //   broadcast(data);
-    // }
-    // if (data.type == "chatMessage") {
-    //   broadcast(data);
-    // }
+    if (data.type === "move") {
+      players.set(data.id, {x: data.position.x, y: data.position.y});
+      broadcast(data, client);
+    }
   });
 
-  // client.on('close', message => {
-  //   const data = JSON.parse(message.toString());
-  //   console.log("(On close) Server received: ", data);
-  //
-  //   if (data.type === "disconnection") {
-  //     const username = data.username as string;
-  //     const position: { x, y } = data.position;
-  //
-  //     fetch(`${DATABASE_URL}/game/players/${username}`, {
-  //       method: 'PUT',
-  //       headers: { 'Content-Type': 'application/json' },
-  //       body: JSON.stringify(position)
-  //     });
-  //
-  //   }
 
-  // console.log(`Client ${player.id} closed`);
-  // broadcast({
-  //   type: "disconnectPlayer",
-  //   id: player.id
-  // });
-  // clients.delete(client);
-  // delete gameState.players[player.id];
-  // });
+  client.on('close', async (message) => {
+    console.log("(On close) Server received.");
+    let id = playerId;
+    try {
+      let pos = players.get(id);
+      broadcast({ type: "disconnectPlayer", id: id }, client);
+      const response = await fetch(`${DATABASE_URL}/game/players/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pos)
+      });
+      if (!response.ok)
+      {
+        throw {code: 500, message: "Failed to upate user"};
+      }
+      console.log("Succesfully synced players!");
+      console.log(`Disconnecting ${id} from server`);
+      clients.delete(client);
+      players.delete(id);
+    } catch (error) {
+      console.error(`disconnection error, attempting to delete ${id} from server anyways`, error);
+      clients.delete(client);
+      players.delete(id);
+    }
 
+  });
 };
