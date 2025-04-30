@@ -4,10 +4,28 @@ const DATABASE_URL = 'http://database_container:3000';
 
 let clients = new Set<WebSocket>();
 let players = new Map<number, Vector2>();
+let pongGame : PongGame  = {table: 1, started: false, ball: {x: 0, y: 0}, startTimer: 5, playerOne: null, playerTwo: null};
 
 export interface Vector2 {
   x: number;
   y: number;
+}
+
+interface PongGame { 
+  table: number,
+  started: boolean,
+  ball: Vector2,
+  startTimer: number,
+  playerOne: {
+    id: number,
+    paddleY: number,
+    ready: boolean,
+  } | null,
+  playerTwo: {
+    id: number,
+    paddleY: number,
+    ready: boolean,
+  } | null,
 }
 
 function broadcast(message, currentClient) {
@@ -101,7 +119,6 @@ syncPlayersDB();
 
 export async function wsGameController(client: WebSocket, request: FastifyRequest) {
 
-
   clients.add(client);
   let playerId : number = -1;
 
@@ -121,6 +138,14 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
     if (data.type === "move") {
       players.set(data.id, {x: data.position.x, y: data.position.y});
       broadcast(data, client);
+    }
+
+    if (data.type === "p1Ready") {
+      console.log("p1Ready.... data.id: ", data.id);
+      if (!pongGame.playerOne) {
+        pongGame.playerOne = {id: data.id, paddleY: 0, ready: true};
+        broadcast(data, client);
+      }
     }
   });
 
@@ -144,6 +169,8 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
       console.log(`Disconnecting ${id} from server`);
       clients.delete(client);
       players.delete(id);
+      if (pongGame.playerOne && pongGame.playerOne.id === id)
+        pongGame.playerOne = null;
     } catch (error) {
       console.error(`disconnection error, attempting to delete ${id} from server anyways`, error);
       clients.delete(client);
