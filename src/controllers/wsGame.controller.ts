@@ -1,32 +1,29 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { WebSocket } from '@fastify/websocket';
+import PongGame from '../ponggame.js';
 const DATABASE_URL = 'http://database_container:3000';
 
 let clients = new Set<WebSocket>();
 let players = new Map<number, Vector2>();
-let pongGame : PongGame  = {table: 1, started: false, ball: {x: 0, y: 0}, startTimer: 5, playerOne: null, playerTwo: null};
+// let pongGame: PongGame = { table: 1, started: false, ball: { x: 0, y: 0 }, startTimer: 5, playerOne: null, playerTwo: null };
+const pongGame = new PongGame(1);
 
-export interface Vector2 {
-  x: number;
-  y: number;
-}
-
-interface PongGame { 
-  table: number,
-  started: boolean,
-  ball: Vector2,
-  startTimer: number,
-  playerOne: {
-    id: number,
-    paddleY: number,
-    ready: boolean,
-  } | null,
-  playerTwo: {
-    id: number,
-    paddleY: number,
-    ready: boolean,
-  } | null,
-}
+// interface PongGame {
+//   table: number,
+//   started: boolean,
+//   ball: Vector2,
+//   startTimer: number,
+//   playerOne: {
+//     id: number,
+//     paddleY: number,
+//     ready: boolean,
+//   } | null,
+//   playerTwo: {
+//     id: number,
+//     paddleY: number,
+//     ready: boolean,
+//   } | null,
+// }
 
 function broadcast(message, currentClient) {
   clients.forEach((client) => {
@@ -75,8 +72,7 @@ export async function removePlayer(request: FastifyRequest, reply: FastifyReply)
 
 async function syncPlayersDB() {
   console.log("Syncing players...", players);
-  if (!players || players.size === 0)
-  {
+  if (!players || players.size === 0) {
     console.log("Nothing to sync, no players...");
     setTimeout(syncPlayersDB, 5000);
     return;
@@ -95,22 +91,19 @@ async function syncPlayersDB() {
     //   throw {code: 500, message: "Failed to upate user"};
     // }
 
-    for (const [id, position] of players) 
-    {
+    for (const [id, position] of players) {
       const response = await fetch(`${DATABASE_URL}/game/players/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(position)
       });
-      if (!response.ok)
-      {
-        throw {code: 500, message: "Failed to upate user"};
+      if (!response.ok) {
+        throw { code: 500, message: "Failed to upate user" };
       }
     }
     console.log("Succesfully synced players!");
-  } catch (error)
-  {
-      console.error(`sync db error`, error);
+  } catch (error) {
+    console.error(`sync db error`, error);
   }
   setTimeout(syncPlayersDB, 10000);
 }
@@ -120,10 +113,12 @@ syncPlayersDB();
 export async function wsGameController(client: WebSocket, request: FastifyRequest) {
 
   clients.add(client);
-  let playerId : number = -1;
+  let playerId: number = -1;
 
   client.on('message', async (message) => {
     const data = JSON.parse(message.toString());
+
+    // Player management
 
     if (data.type === "newConnection") {
       console.log("(On message) Server received: ", data);
@@ -136,17 +131,40 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
     }
 
     if (data.type === "move") {
-      players.set(data.id, {x: data.position.x, y: data.position.y});
+      players.set(data.id, { x: data.position.x, y: data.position.y });
       broadcast(data, client);
     }
 
-    if (data.type === "p1Ready") {
-      console.log("p1Ready.... data.id: ", data.id);
-      if (!pongGame.playerOne) {
-        pongGame.playerOne = {id: data.id, paddleY: 0, ready: true};
-        broadcast(data, client);
+
+    // Pong Game
+
+    if (data.type === "join_pong") {
+
+      const pongPlayer = pongGame.assignPlayer(data.pongPlayer);
+
+      if (pongPlayer) {
+        broadcast({ type: "join_pong", pongPlayer }, client);
+      }
+      else {
+        console.log("assigning player to table failed!");
       }
     }
+
+    if (data.type === "leave_pong") {
+
+      const pongPlayer = data.pongPlayer;
+
+      pongGame.removePlayer(pongPlayer);
+      broadcast({ type: "leave_pong", pongPlayer }, client);
+    }
+
+    // if (data.type === "p1Ready") {
+    //   console.log("p1Ready.... data.id: ", data.id);
+    //   if (!pongGame.playerOne) {
+    //     pongGame.playerOne = { id: data.id, paddleY: 0, ready: true };
+    //     broadcast(data, client);
+    //   }
+    // }
   });
 
 
@@ -161,9 +179,8 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(pos)
       });
-      if (!response.ok)
-      {
-        throw {code: 500, message: "Failed to upate user"};
+      if (!response.ok) {
+        throw { code: 500, message: "Failed to upate user" };
       }
       console.log("Succesfully synced players!");
       console.log(`Disconnecting ${id} from server`);
