@@ -1,6 +1,5 @@
 declare global {
 
-
   interface PongPlayer {
     id: number,
     username: string,
@@ -8,6 +7,14 @@ declare global {
     ready: boolean,
     score: number,
     side: string,
+  }
+
+  interface Player { // Related to ServerPlayer (on Client side)
+    id: number,
+    username: string,
+    avatar: string,
+    x: number,
+    y: number,
   }
 
   interface Vector2 {
@@ -21,23 +28,6 @@ declare global {
     username?: string,
     avatar?: string,
     position?: Vector2,
-  }
-
-  interface UserData {
-    id: number,
-    username: string,
-    password: string,
-    email: string,
-    avatar: string,
-    status: boolean,
-    player: PlayerData
-  }
-
-  interface PlayerData {
-    id: number,
-    userId: number,
-    x: number,
-    y: number,
   }
 
 }
