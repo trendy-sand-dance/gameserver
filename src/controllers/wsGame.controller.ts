@@ -42,7 +42,7 @@ async function syncPlayersDB() {
       const response = await fetch(`${DATABASE_URL}/game/players/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({position: {x: player.x, y: player.y}})
+        body: JSON.stringify({ position: { x: player.x, y: player.y } })
       });
       if (!response.ok) {
         throw { code: 500, message: "Failed to upate user" };
@@ -61,7 +61,7 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
 
   clients.add(client);
   let playerId: number = -1;
-  let currentPlayer : Player | null = null;
+  let currentPlayer: Player | null = null;
 
   client.on('message', async (message) => {
     const data = JSON.parse(message.toString());
@@ -70,7 +70,7 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
 
     if (data.type === "new_connection") {
       console.log("(On message) Server received: ", data);
-      currentPlayer = {id: data.id, username: data.username, avatar: data.avatar, x: data.position.x, y: data.position.y};
+      currentPlayer = { id: data.id, username: data.username, avatar: data.avatar, x: data.position.x, y: data.position.y };
 
       playerId = data.id;
       players.set(data.id, currentPlayer);
@@ -98,7 +98,7 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
       const pongPlayer = pongGame.assignPlayer(data.pongPlayer);
 
       if (pongPlayer) {
-        client.send(JSON.stringify({type: "confirm_pong_player", pongPlayer}));
+        client.send(JSON.stringify({ type: "confirm_pong_player", pongPlayer }));
         broadcast({ type: "join_pong", pongPlayer }, client);
       }
       else {
@@ -108,9 +108,10 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
 
     if (data.type === "leave_pong") {
       console.log("(On message) Server received: ", data);
-      const pongPlayer : PongPlayer = data.pongPlayer;
+      const pongPlayer: PongPlayer = data.pongPlayer;
       pongGame.removePlayer(pongPlayer);
-      broadcast({ type: "leave_pong", pongPlayer }, client);
+      // client.send(JSON.stringify({type: "confirm_pong_player", pongPlayer}));
+      broadcast({ type: "leave_pong", pongPlayer }, null);
     }
 
   });
