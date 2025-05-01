@@ -1,5 +1,10 @@
 declare global {
 
+  enum Side {
+    Left,
+    Right,
+  }
+
   interface PongPlayer {
     id: number,
     username: string,

@@ -36,6 +36,15 @@ export default class PongGame {
     return null;
   }
 
+  getPlayer(side : 'left' | 'right') {
+    if (side === "left") {
+      return this.playerLeft;
+    }
+    else if (side === "right") {
+      return this.playerRight;
+    }
+  }
+
   removePlayer(player: PongPlayer) {
 
     if (player.side === "left") {

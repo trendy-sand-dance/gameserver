@@ -81,12 +81,11 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
     }
 
     if (data.type === "player_move") {
-      console.log("(On message) Server received: ", data);
+      // console.log("(On message) Server received: ", data);
       const player = players.get(data.id);
       if (player) {
         player.x = data.position.x;
         player.y = data.position.y;
-        console.log("this never happens, right?");
       }
       broadcast(data, client);
     }
@@ -99,6 +98,7 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
       const pongPlayer = pongGame.assignPlayer(data.pongPlayer);
 
       if (pongPlayer) {
+        client.send(JSON.stringify({type: "confirm_pong_player", pongPlayer}));
         broadcast({ type: "join_pong", pongPlayer }, client);
       }
       else {
@@ -108,8 +108,7 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
 
     if (data.type === "leave_pong") {
       console.log("(On message) Server received: ", data);
-      const pongPlayer = data.pongPlayer;
-
+      const pongPlayer : PongPlayer = data.pongPlayer;
       pongGame.removePlayer(pongPlayer);
       broadcast({ type: "leave_pong", pongPlayer }, client);
     }
