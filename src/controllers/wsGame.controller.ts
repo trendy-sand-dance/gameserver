@@ -99,7 +99,7 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
 
       if (pongPlayer) {
         client.send(JSON.stringify({ type: "confirm_pong_player", pongPlayer }));
-        broadcast({ type: "join_pong", pongPlayer }, client);
+        broadcast({ type: "player_joined_pong", pongPlayer }, client);
       }
       else {
         console.log("assigning player to table failed!");
