@@ -57,7 +57,20 @@ async function syncPlayersDB() {
 
 syncPlayersDB();
 
+function countdownTimer(countDownTime: number, pongGame: PongGame) {
+  let sec: number = countDownTime;
+  let timer = setInterval(function() {
+    sec--;
+    console.log("Sec: ", sec);
+    if (sec < 0) {
+      pongGame.startGame();
+      clearInterval(timer);
+    }
+  }, 1000);
+}
+
 export async function wsGameController(client: WebSocket, request: FastifyRequest) {
+
 
   clients.add(client);
   let playerId: number = -1;
@@ -95,11 +108,14 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
 
     if (data.type === "join_pong") {
       console.log("(On message) Server received: ", data);
-      const pongPlayer = pongGame.assignPlayer(data.pongPlayer);
+      const pongPlayer = pongGame.assignPlayer(data.pongPlayer, client);
 
       if (pongPlayer) {
         client.send(JSON.stringify({ type: "confirm_pong_player", pongPlayer }));
         broadcast({ type: "player_joined_pong", pongPlayer }, client);
+        if (pongGame.playersAreReady()) {
+          pongGame.countdownTimer();
+        }
       }
       else {
         console.log("assigning player to table failed!");
@@ -110,8 +126,12 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
       console.log("(On message) Server received: ", data);
       const pongPlayer: PongPlayer = data.pongPlayer;
       pongGame.removePlayer(pongPlayer);
-      // client.send(JSON.stringify({type: "confirm_pong_player", pongPlayer}));
       broadcast({ type: "leave_pong", pongPlayer }, null);
+    }
+
+    if (data.type === "paddle_move") {
+      pongGame.movePaddle(data.side, data.direction);
+      broadcast({ type: "pong_update", pongState: pongGame.getState() }, null);
     }
 
   });
