@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { WebSocket } from '@fastify/websocket';
-import PongGame from '../ponggame.js';
+import PongGame from '../pong/ponggame.js';
 const DATABASE_URL = 'http://database_container:3000';
 
 let clients = new Set<WebSocket>();
@@ -112,15 +112,17 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
     if (data.type === "leave_pong") {
       // console.log("(On message) Server received: ", data);
       const pongPlayer: PongPlayer = data.pongPlayer;
-      pongGame.removePlayer(pongPlayer);
       pongGame.stopGame();
+      pongGame.removePlayer(pongPlayer);
       broadcast({ type: "leave_pong", pongPlayer }, null);
     }
 
     if (data.type === "paddle_move") {
-      pongGame.movePaddle(data.side, data.direction);
+      pongGame.handlePaddle(data.side, data.direction);
       broadcast({ type: "pong_update", pongState: pongGame.getPaddleState() }, null);
+
     }
+
   });
 
 
@@ -149,4 +151,5 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
     }
 
   });
+
 };

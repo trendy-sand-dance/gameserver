@@ -1,8 +1,25 @@
+import Paddle from './pong/paddle.js';
+
 declare global {
 
   enum Side {
     Left,
     Right,
+  }
+
+  interface PlayerMap {
+    left: PongPlayer | null,
+    right: PongPlayer | null,
+  }
+
+  interface ClientMap {
+    left: WebSocket | null,
+    right: WebSocket | null,
+  }
+
+  interface PaddleMap {
+    left: Paddle,
+    right: Paddle,
   }
 
   interface PongPlayer {
