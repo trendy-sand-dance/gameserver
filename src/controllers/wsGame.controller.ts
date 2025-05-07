@@ -8,7 +8,7 @@ let clients = new Set<WebSocket>();
 let players = new Map<number, Player>();
 const pongGame = new PongGame(1);
 
-function broadcast(message, currentClient) {
+export function broadcast(message, currentClient) {
   clients.forEach((client) => {
 
     if (client.readyState == 1 && client !== currentClient) {
@@ -57,24 +57,13 @@ async function syncPlayersDB() {
 
 syncPlayersDB();
 
-function countdownTimer(countDownTime: number, pongGame: PongGame) {
-  let sec: number = countDownTime;
-  let timer = setInterval(function() {
-    sec--;
-    console.log("Sec: ", sec);
-    if (sec < 0) {
-      pongGame.startGame();
-      clearInterval(timer);
-    }
-  }, 1000);
-}
-
 export async function wsGameController(client: WebSocket, request: FastifyRequest) {
 
 
   clients.add(client);
   let playerId: number = -1;
   let currentPlayer: Player | null = null;
+
 
   client.on('message', async (message) => {
     const data = JSON.parse(message.toString());
@@ -126,14 +115,14 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
       console.log("(On message) Server received: ", data);
       const pongPlayer: PongPlayer = data.pongPlayer;
       pongGame.removePlayer(pongPlayer);
+      pongGame.stopGame();
       broadcast({ type: "leave_pong", pongPlayer }, null);
     }
 
     if (data.type === "paddle_move") {
       pongGame.movePaddle(data.side, data.direction);
-      broadcast({ type: "pong_update", pongState: pongGame.getState() }, null);
+      broadcast({ type: "pong_update", pongState: pongGame.getPaddleState() }, null);
     }
-
   });
 
 
