@@ -1,15 +1,14 @@
 import { WebSocket } from '@fastify/websocket';
+import Ball from './pong/ball.js';
 import { broadcast } from './controllers/wsGame.controller.js';
 
 export default class PongGame {
   // Pong Game data
     // Ball
-  private ball: Vector2 = { x: 2, y: 1 }; // Spawn it in the middle
-  private direction: Vector2 = { x: (Math.random() * 2) - 1, y: (Math.random() * 2) - 1 }; // Assign direction between (-1, 1)
-  private speed: number = 0.05;
+  private ball : Ball = new Ball({x: 2, y: 1}, 0.05);
+
     // Paddle
   private paddleHeight: number = 0.5;
-
 
     // Players
   private playerLeft: PongPlayer | null = null;
@@ -18,14 +17,16 @@ export default class PongGame {
   private clientRight: WebSocket | null = null;
 
   // Table data
-  private table: number | null = null;
+  private table: number;
   private inProgress: boolean = false;
   private startTimer: number = 3;
   private tableWidth = 4;
   private tableHeight = 2;
 
-  constructor(table: number) {
+  constructor(table: number, width : number, height : number) {
     this.table = table;
+    this.tableWidth = width;
+    this.tableHeight = height;
   }
 
   assignPlayer(player: PongPlayer, client: WebSocket): PongPlayer | null {
@@ -56,9 +57,14 @@ export default class PongGame {
     if (this.clientLeft && this.clientRight) {
       this.clientLeft.send(JSON.stringify({ type: "start_pong_game" }));
       this.clientRight.send(JSON.stringify({ type: "start_pong_game" }));
-      this.direction = { x: (Math.random() * 2) - 1, y: (Math.random() * 2) - 1 };
+      this.ball.respawn({x: 2, y: 1}, 0.05, null);
       this.inProgress = true;
+      this.startGameloop();
     }
+  }
+
+  stopGame() {
+    this.inProgress = false;
   }
 
   isGameInProgress() : boolean {
@@ -80,14 +86,13 @@ export default class PongGame {
       if (sec < 0) {
         clearInterval(timer);
         this.startGame();
-        this.update();
       }
 
     }, 1000);
 
   }
 
-  update() {
+  startGameloop() {
 
     const ticker = setInterval(() => {
 
@@ -111,11 +116,6 @@ export default class PongGame {
     if (this.playerLeft && this.playerRight)
       return this.playerLeft.ready && this.playerRight.ready;
     return false;
-  }
-
-  stopGame() {
-    this.ball = {x: 2, y: 1} as Vector2;
-    this.inProgress = false;
   }
 
   getPlayer(side: 'left' | 'right') {
@@ -165,13 +165,13 @@ export default class PongGame {
     }
   }
 
-  collidesWithPaddle(paddleY: number) : boolean {
+  collidesWithPaddle(paddleY: number, ballY: number) : boolean {
 
     let pHeight = this.paddleHeight / 2;
     let pBegin = paddleY - pHeight;
     let pEnd = paddleY + pHeight;
 
-    if (this.ball.y >= pBegin && this.ball.y <= pEnd) {
+    if (ballY >= pBegin && ballY <= pEnd) {
       return true;
     }
 
@@ -180,14 +180,14 @@ export default class PongGame {
 
   moveBall() {
 
+    let ballPos = this.ball.getPosition();
+
     if (this.playerLeft && this.playerRight) {
 
-      this.updateBall();
+      if (ballPos.x < 0) {
 
-      if (this.ball.x < 0) {
-
-        if (this.collidesWithPaddle(this.playerLeft.paddleY)) {
-          this.bounceX();
+        if (this.collidesWithPaddle(this.playerLeft.paddleY, this.ball.getPosition().y)) {
+          this.ball.bounceX();
         }
         else {
           if (this.clientLeft) {
@@ -199,10 +199,10 @@ export default class PongGame {
         } 
       }
 
-      if (this.ball.x > this.tableWidth) {
+      if (ballPos.x > this.tableWidth) {
 
-        if (this.collidesWithPaddle(this.playerRight.paddleY)) {
-          this.bounceX();
+        if (this.collidesWithPaddle(this.playerRight.paddleY, this.ball.getPosition().y)) {
+          this.ball.bounceX();
         }
         else {
           if (this.clientRight) {
@@ -214,33 +214,17 @@ export default class PongGame {
         }
       }
 
-      if (this.ball.y < 0 || this.ball.y > this.tableHeight) {
-        this.bounceY();
+      if (ballPos.y < 0 || ballPos.y > this.tableHeight) {
+        this.ball.bounceY();
       }
 
+      this.ball.update();
     }
 
-  }
-
-  updateBall() {
-    let currentPos: Vector2 = this.ball;
-    let newPos: Vector2 = { x: currentPos.x + this.direction.x * this.speed, y: currentPos.y + this.direction.y * this.speed}
-
-    this.ball = newPos;
-  }
-
-  bounceX() {
-    this.direction.x = -this.direction.x;
-  }
-
-  bounceY() {
-    this.direction.y = -this.direction.y;
   }
 
   getBallState() : Vector2 | undefined {
-    if (this.playerRight && this.playerLeft) {
-      return this.ball;
-    }
+      return this.ball.getPosition();
   }
 
   getPaddleState() {
@@ -261,5 +245,9 @@ export default class PongGame {
       console.error("getState() failed due to initialized player(s)");
     }
 
+  }
+
+  getTableId() : number {
+    return this.table;
   }
 }

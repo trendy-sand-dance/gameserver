@@ -4,11 +4,10 @@ import PongGame from '../ponggame.js';
 const DATABASE_URL = 'http://database_container:3000';
 
 let clients = new Set<WebSocket>();
-// let players = new Map<number, Vector2>();
 let players = new Map<number, Player>();
-const pongGame = new PongGame(1);
+const pongGame = new PongGame(1, 4, 2); // Horizontal (4x2) table
 
-export function broadcast(message, currentClient) {
+export function broadcast(message, currentClient : WebSocket | null) {
   clients.forEach((client) => {
 
     if (client.readyState == 1 && client !== currentClient) {
@@ -69,9 +68,8 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
     const data = JSON.parse(message.toString());
 
     // Player management
-
     if (data.type === "new_connection") {
-      console.log("(On message) Server received: ", data);
+      // console.log("(On message) Server received: ", data);
       currentPlayer = { id: data.id, username: data.username, avatar: data.avatar, x: data.position.x, y: data.position.y };
 
       playerId = data.id;
@@ -96,7 +94,7 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
     // Pong Game
 
     if (data.type === "join_pong") {
-      console.log("(On message) Server received: ", data);
+      // console.log("(On message) Server received: ", data);
       const pongPlayer = pongGame.assignPlayer(data.pongPlayer, client);
 
       if (pongPlayer) {
@@ -112,7 +110,7 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
     }
 
     if (data.type === "leave_pong") {
-      console.log("(On message) Server received: ", data);
+      // console.log("(On message) Server received: ", data);
       const pongPlayer: PongPlayer = data.pongPlayer;
       pongGame.removePlayer(pongPlayer);
       pongGame.stopGame();
