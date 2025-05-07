@@ -7,7 +7,8 @@ export default class PongGame {
   private ball: Vector2 = { x: 2, y: 1 }; // Spawn it in the middle
   private direction: Vector2 = { x: (Math.random() * 2) - 1, y: (Math.random() * 2) - 1 }; // Assign direction between (-1, 1)
   private speed: number = 0.05;
-
+    // Paddle
+  private paddleHeight: number = 0.5;
 
 
     // Players
@@ -55,6 +56,7 @@ export default class PongGame {
     if (this.clientLeft && this.clientRight) {
       this.clientLeft.send(JSON.stringify({ type: "start_pong_game" }));
       this.clientRight.send(JSON.stringify({ type: "start_pong_game" }));
+      this.direction = { x: (Math.random() * 2) - 1, y: (Math.random() * 2) - 1 };
       this.inProgress = true;
     }
   }
@@ -68,16 +70,19 @@ export default class PongGame {
     let sec: number = this.startTimer;
 
     let timer = setInterval(() => {
+
       sec--;
       if (this.clientLeft && this.clientRight) {
         this.clientLeft.send(JSON.stringify({ type: "countdown_pong", timer: sec }));
         this.clientRight.send(JSON.stringify({ type: "countdown_pong", timer: sec }));
       }
+
       if (sec < 0) {
         clearInterval(timer);
         this.startGame();
         this.update();
       }
+
     }, 1000);
 
   }
@@ -109,6 +114,7 @@ export default class PongGame {
   }
 
   stopGame() {
+    this.ball = {x: 2, y: 1} as Vector2;
     this.inProgress = false;
   }
 
@@ -159,16 +165,59 @@ export default class PongGame {
     }
   }
 
-  moveBall() {
+  collidesWithPaddle(paddleY: number) : boolean {
 
-    this.updateBall();
+    let pHeight = this.paddleHeight / 2;
+    let pBegin = paddleY - pHeight;
+    let pEnd = paddleY + pHeight;
 
-    if (this.ball.x < 0 || this.ball.x > this.tableWidth) {
-      this.bounceX();
+    if (this.ball.y >= pBegin && this.ball.y <= pEnd) {
+      return true;
     }
 
-    if (this.ball.y < 0 || this.ball.y > this.tableHeight) {
-      this.bounceY();
+    return false;
+  }
+
+  moveBall() {
+
+    if (this.playerLeft && this.playerRight) {
+
+      this.updateBall();
+
+      if (this.ball.x < 0) {
+
+        if (this.collidesWithPaddle(this.playerLeft.paddleY)) {
+          this.bounceX();
+        }
+        else {
+          if (this.clientLeft) {
+            this.clientLeft.send(JSON.stringify({type: "score_update", side: "left", score: this.playerLeft.score}));
+          }
+          this.playerLeft.score++;
+          this.stopGame();
+          this.countdownTimer();
+        } 
+      }
+
+      if (this.ball.x > this.tableWidth) {
+
+        if (this.collidesWithPaddle(this.playerRight.paddleY)) {
+          this.bounceX();
+        }
+        else {
+          if (this.clientRight) {
+            this.clientRight.send(JSON.stringify({type: "score_update", side: "left", score: this.playerRight.score}));
+          }
+          this.playerRight.score++;
+          this.stopGame();
+          this.countdownTimer();
+        }
+      }
+
+      if (this.ball.y < 0 || this.ball.y > this.tableHeight) {
+        this.bounceY();
+      }
+
     }
 
   }
