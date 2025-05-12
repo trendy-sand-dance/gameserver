@@ -9,16 +9,16 @@ function isWithinRange(value: number, target: number, range: number) {
 
 export default class PongGame {
   // Pong Game data
-    // Ball
-  private ball : Ball = new Ball({x: 2, y: 1}, 0.05);
+  // Ball
+  private ball: Ball = new Ball({ x: 2, y: 1 }, 0.05);
 
-    // Paddle
+  // Paddle
   private paddleHeight: number = 0.5;
 
-    // Players & Clients
-  private paddles : PaddleMap = {left: new Paddle(1, 0.5, 0.05, 2), right: new Paddle(1, 0.5, 0.05, 2)};
-  private players : PlayerMap = {left: null, right: null};
-  private clients : ClientMap = {left: null, right: null};
+  // Players & Clients
+  private paddles: PaddleMap = { left: new Paddle(1, 0.5, 0.05, 2), right: new Paddle(1, 0.5, 0.05, 2) };
+  private players: PlayerMap = { left: null, right: null };
+  private clients: ClientMap = { left: null, right: null };
 
   // Table data
   private table: number;
@@ -28,7 +28,7 @@ export default class PongGame {
   private inProgress: boolean = false;
   private startTimer: number = 3;
 
-  constructor(table: number, width : number, height : number) {
+  constructor(table: number, width: number, height: number) {
     this.table = table;
     this.tableWidth = width;
     this.tableHeight = height;
@@ -54,7 +54,7 @@ export default class PongGame {
     if (this.clients['left'] && this.clients['right']) {
       this.clients['left'].send(JSON.stringify({ type: "start_pong_game" }));
       this.clients['right'].send(JSON.stringify({ type: "start_pong_game" }));
-      this.ball.respawn({x: 2, y: 1}, 0.05, null);
+      this.ball.respawn({ x: 2, y: 1 }, 0.05, null);
       this.inProgress = true;
       this.startGameloop();
     }
@@ -67,7 +67,7 @@ export default class PongGame {
 
   }
 
-  isInProgress() : boolean {
+  isInProgress(): boolean {
 
     return this.inProgress;
 
@@ -100,10 +100,10 @@ export default class PongGame {
 
       if (this.isInProgress()) {
         this.handleBall();
-        let pos : Vector2 | undefined = this.getBallState();
+        let pos: Vector2 | undefined = this.getBallState();
 
         if (pos) {
-          broadcast({ type: "ball_move", ball: pos}, null);
+          broadcast({ type: "ball_move", ball: pos }, null);
         }
 
       }
@@ -122,7 +122,7 @@ export default class PongGame {
 
   }
 
-  getPlayer(side: 'left' | 'right') : PongPlayer | null {
+  getPlayer(side: 'left' | 'right'): PongPlayer | null {
 
     return this.players[side];
 
@@ -139,8 +139,8 @@ export default class PongGame {
 
     if (this.players[side]) {
 
-        this.paddles[side].update(input);
-        this.players[side].paddleY = this.paddles[side].getPaddleY();
+      this.paddles[side].update(input);
+      this.players[side].paddleY = this.paddles[side].getPaddleY();
     }
 
   }
@@ -148,9 +148,9 @@ export default class PongGame {
   handleBall() {
 
     let ballPos = this.ball.getPosition();
-    let side : string = ballPos.x < 2 ? 'left' : 'right';
+    let side: string = ballPos.x < 2 ? 'left' : 'right';
 
-    if (!this.players[side] || !this.clients[side]) 
+    if (!this.players[side] || !this.clients[side])
       return;
 
     if (ballPos.x <= 0 || ballPos.x >= this.tableWidth) { // bounceX & scoring
@@ -161,11 +161,11 @@ export default class PongGame {
       else {
 
         this.players[side].score++;
-        this.clients['left']?.send(JSON.stringify({type: "score_update", side: side, score: this.players[side].score}));
-        this.clients['right']?.send(JSON.stringify({type: "score_update", side: side, score: this.players[side].score}));
+        this.clients['left']?.send(JSON.stringify({ type: "score_update", side: side, score: this.players[side].score }));
+        this.clients['right']?.send(JSON.stringify({ type: "score_update", side: side, score: this.players[side].score }));
         this.stopGame();
         this.countdownTimer();
-      } 
+      }
     }
     if (ballPos.y <= 0 || ballPos.y >= this.tableHeight) { // bounceY
       this.ball.bounceY();
@@ -174,8 +174,26 @@ export default class PongGame {
 
   }
 
-  getBallState() : Vector2 | undefined {
-      return this.ball.getPosition();
+  getBallState(): Vector2 | undefined {
+    return this.ball.getPosition();
+  }
+
+  getPongState() {
+
+    if (this.players['right'] && this.players['left']) {
+
+      return {
+
+        players: {
+          left: this.players['left'],
+          right: this.players['right']
+        },
+        ball: this.getBallState()
+
+      };
+
+    }
+
   }
 
   getPaddleState() {
@@ -198,7 +216,7 @@ export default class PongGame {
 
   }
 
-  getTableId() : number {
+  getTableId(): number {
     return this.table;
   }
 }
