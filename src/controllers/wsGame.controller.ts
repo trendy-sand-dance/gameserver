@@ -110,14 +110,13 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
       console.log("(On message) Server received: ", data);
       const pongPlayer: PongPlayer = data.pongPlayer;
       pongGame.stopGame();
-      pongGame.removePlayer(pongPlayer);
+      // pongGame.removePlayer(pongPlayer);
       broadcast({ type: "leave_pong", pongPlayer }, null);
     }
 
     if (data.type === "paddle_move") {
       pongGame.handlePaddle(data.side, data.direction);
       broadcast({ type: "pong_update", pongState: pongGame.getPaddleState() }, null);
-
     }
 
   });
@@ -141,6 +140,10 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
       console.log(`Disconnecting ${id} from server`);
       clients.delete(client);
       players.delete(id);
+      if (pongGame.isInProgress()) {
+        pongGame.stopGame()
+        broadcast({ type: "player_disconnected_pong"}, null);
+      }
     } catch (error) {
       console.error(`disconnection error, attempting to delete ${id} from server anyways`, error);
       clients.delete(client);

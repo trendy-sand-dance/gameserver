@@ -1,7 +1,9 @@
 import { WebSocket } from '@fastify/websocket';
 import Paddle from './paddle.js';
 import Ball from './ball.js';
+import PongMatch from './pongmatch.js';
 import { broadcast } from '../controllers/wsGame.controller.js';
+
 
 function isWithinRange(value: number, target: number, range: number) {
   return Math.abs(value - target) <= range;
@@ -27,6 +29,9 @@ export default class PongGame {
 
   private inProgress: boolean = false;
   private startTimer: number = 3;
+  private scoreLimit: number = 1;
+
+  private matches : PongMatch[] = [];
 
   constructor(table: number, width: number, height: number) {
     this.table = table;
@@ -49,21 +54,61 @@ export default class PongGame {
     return this.players[player.side];
   }
 
-  startGame() {
+  async startGame() {
 
-    if (this.clients['left'] && this.clients['right']) {
+    if (this.clients['left'] && this.clients['right'] && this.players['left'] && this.players['right']) {
       this.clients['left'].send(JSON.stringify({ type: "start_pong_game" }));
       this.clients['right'].send(JSON.stringify({ type: "start_pong_game" }));
       this.ball.respawn({ x: 2, y: 1 }, 0.05, null);
       this.inProgress = true;
+
+      if (this.matches.length === 0) {
+        const match = new PongMatch(this.players['left'].id, this.players['right'].id);
+        await match.initialize();
+        this.matches.push(match);
+      }
       this.startGameloop();
+
     }
 
   }
 
-  stopGame() {
+  async stopGame() {
 
     this.inProgress = false;
+
+    this.players['left'] = null;
+    this.players['right'] = null;
+    this.clients['left'] = null;
+    this.clients['right'] = null;
+
+    const match = this.matches.pop();
+    if (match) { 
+      await match.saveMatch();
+    }
+
+  }
+
+  async finishGame() {
+
+    this.inProgress = false;
+
+    this.players['left'] = null;
+    this.players['right'] = null;
+    this.clients['left'] = null;
+    this.clients['right'] = null;
+
+    const match = this.matches.pop();
+    if (match) { 
+      await match.saveMatch();
+    }
+
+  }
+
+
+  setInProgress(state : boolean) {
+
+    this.inProgress = state;
 
   }
 
@@ -128,6 +173,12 @@ export default class PongGame {
 
   }
 
+  getClient(side: 'left' | 'right') {
+
+      return this.clients[side];
+
+  }
+
   removePlayer(player: PongPlayer) {
 
     this.players[player.side] = null;
@@ -159,12 +210,17 @@ export default class PongGame {
         this.ball.bounceX();
       }
       else {
-
         this.players[side].score++;
         this.clients['left']?.send(JSON.stringify({ type: "score_update", side: side, score: this.players[side].score }));
         this.clients['right']?.send(JSON.stringify({ type: "score_update", side: side, score: this.players[side].score }));
-        this.stopGame();
-        this.countdownTimer();
+        this.matches[0].update(this.players['left']!.score, this.players['right']!.score);
+        if (this.players[side].score >= this.scoreLimit) {
+          this.finishGame();
+        }
+        else {
+          this.setInProgress(false);
+          this.countdownTimer();
+          }
       }
     }
     if (ballPos.y <= 0 || ballPos.y >= this.tableHeight) { // bounceY

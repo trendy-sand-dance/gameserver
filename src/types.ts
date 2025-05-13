@@ -52,6 +52,8 @@ declare global {
     position?: Vector2,
   }
 
+
 }
+export const DATABASE_URL = 'http://database_container:3000';
 
 
