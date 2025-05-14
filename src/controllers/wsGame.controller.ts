@@ -1,11 +1,14 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { WebSocket } from '@fastify/websocket';
 import PongGame from '../pong/ponggame.js';
+import Tournament from '../pong/tournament.js';
 const DATABASE_URL = 'http://database_container:3000';
+
 
 let clients = new Set<WebSocket>();
 let players = new Map<number, Player>();
 const pongGame = new PongGame(1, 4, 2); // Horizontal (4x2) table
+const pongTournament = new Tournament();
 
 export function broadcast(message, currentClient: WebSocket | null) {
   clients.forEach((client) => {
@@ -117,6 +120,28 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
     if (data.type === "paddle_move") {
       pongGame.handlePaddle(data.side, data.direction);
       broadcast({ type: "pong_update", pongState: pongGame.getPaddleState() }, null);
+    }
+
+    // Tournament stuff
+    if (data.type == "tournament_join") {
+      const pongPlayer: PongPlayer = data.pongPayer;
+      if (pongPlayer) {
+        pongTournament.subscribe(pongPlayer);
+        if (pongTournament.isTournamentFull()) {
+          broadcast({type: "tournament_full", players: Array.from(pongTournament.getPlayers().entries())}, null);
+        }
+        else {
+          broadcast({type: "tournament_player_joined", player: pongPlayer}, client);
+        }
+      }
+    }
+
+    if (data.type == "tournament_leave") {
+      const pongPlayer: PongPlayer = data.pongPayer;
+      if (pongPlayer) {
+        pongTournament.unsubscribe(pongPlayer);
+        broadcast({type: "tournament_player_left", player: pongPlayer}, client);
+      }
     }
 
   });
