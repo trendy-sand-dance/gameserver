@@ -1,5 +1,6 @@
 services:
   gameserver:
+    container_name: gameserver_container
     build:
       context: .
       target: development

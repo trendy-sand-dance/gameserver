@@ -50,6 +50,15 @@ async function syncPlayersDB() {
 
 syncPlayersDB();
 
+export async function getTournamentPlayers(request: FastifyRequest, reply: FastifyReply) {
+
+  const pongPlayers : TournamentPlayer[] = pongTournament.getPlayers();
+
+  console.log("TRIGGERING GETTOURNAMENTPPLAYESSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS!");
+
+  return reply.code(200).send({pongPlayers});
+}
+
 export async function wsGameController(client: WebSocket, request: FastifyRequest) {
 
 
@@ -124,23 +133,25 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
 
     // Tournament stuff
     if (data.type == "tournament_join") {
-      const pongPlayer: PongPlayer = data.pongPayer;
-      if (pongPlayer) {
-        pongTournament.subscribe(pongPlayer);
+      console.log("(On message) Server received: ", data);
+      const tournamentPlayer: TournamentPlayer = data.tournamentPlayer;
+      if (tournamentPlayer) {
         if (pongTournament.isTournamentFull()) {
-          broadcast({type: "tournament_full", players: Array.from(pongTournament.getPlayers().entries())}, null);
+          broadcast({type: "tournament_full"}, null);
         }
         else {
-          broadcast({type: "tournament_player_joined", player: pongPlayer}, client);
+          pongTournament.subscribe(tournamentPlayer);
+          // broadcast({type: "tournament_player_joined", player: pongPlayer}, client);
         }
       }
     }
 
     if (data.type == "tournament_leave") {
-      const pongPlayer: PongPlayer = data.pongPayer;
-      if (pongPlayer) {
-        pongTournament.unsubscribe(pongPlayer);
-        broadcast({type: "tournament_player_left", player: pongPlayer}, client);
+      console.log("(On message) Server received: ", data);
+      const tournamentPlayer: TournamentPlayer = data.tournamentPlayer;
+      if (tournamentPlayer) {
+        pongTournament.unsubscribe(tournamentPlayer);
+        // broadcast({type: "tournament_player_left", player: pongPlayer}, client);
       }
     }
 

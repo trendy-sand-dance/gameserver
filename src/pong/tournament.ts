@@ -4,7 +4,7 @@ import PongMatch from './pongmatch.js';
 export default class Tournament {
 
   // private pongGame : PongGame;
-  private players : PongPlayer[] = [];
+  private players : TournamentPlayer[] = [];
   private matches : PongMatch[] = [];
   private isFull : boolean = false;
 
@@ -12,7 +12,7 @@ export default class Tournament {
 
   }
 
-  subscribe(player : PongPlayer) {
+  subscribe(player : TournamentPlayer) {
 
     if (this.players.length >= 4) {
       console.error("Can't subscribe, Tournament is full!");
@@ -30,7 +30,7 @@ export default class Tournament {
 
   }
 
-  unsubscribe(player : PongPlayer) {
+  unsubscribe(player : TournamentPlayer) {
 
     const index = this.players.indexOf(player);
     if (index === -1) {
@@ -70,7 +70,7 @@ export default class Tournament {
 
   }
 
-  getPlayers() : PongPlayer[] {
+  getPlayers() : TournamentPlayer[] {
 
     return this.players;
 

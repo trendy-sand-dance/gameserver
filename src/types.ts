@@ -31,6 +31,15 @@ declare global {
     side: string,
   }
 
+  interface TournamentPlayer {
+    id: number,
+    username: string,
+    avatar: string,
+    wins: number,
+    losses: number,
+    local: boolean,
+  }
+
   interface Player { // Related to ServerPlayer (on Client side)
     id: number,
     username: string,
