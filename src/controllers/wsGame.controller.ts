@@ -54,8 +54,6 @@ export async function getTournamentPlayers(request: FastifyRequest, reply: Fasti
 
   const pongPlayers : TournamentPlayer[] = pongTournament.getPlayers();
 
-  console.log("TRIGGERING GETTOURNAMENTPPLAYESSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS!");
-
   return reply.code(200).send({pongPlayers});
 }
 
@@ -141,7 +139,6 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
         }
         else {
           pongTournament.subscribe(tournamentPlayer);
-          // broadcast({type: "tournament_player_joined", player: pongPlayer}, client);
         }
       }
     }
@@ -151,7 +148,6 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
       const tournamentPlayer: TournamentPlayer = data.tournamentPlayer;
       if (tournamentPlayer) {
         pongTournament.unsubscribe(tournamentPlayer);
-        // broadcast({type: "tournament_player_left", player: pongPlayer}, client);
       }
     }
 
