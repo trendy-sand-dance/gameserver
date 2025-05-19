@@ -1,11 +1,13 @@
 import PongMatch from './pongmatch.js';
-// import PongGame from './ponggame.js';
+import { broadcast } from '../controllers/wsGame.controller.js';
+import { TournamentState } from '../types.js';
 
 export default class Tournament {
 
-  // private pongGame : PongGame;
   private players: TournamentPlayer[] = [];
   private matches: PongMatch[] = [];
+  private state: TournamentState = TournamentState.Enrolling;
+  private round: number = 0;
   private isFull: boolean = false;
 
   constructor() {
@@ -40,7 +42,120 @@ export default class Tournament {
 
   }
 
-  schedulePongMatches(): PongMatch[] {
+  countdownAnnouncement() {
+
+    let sec: number = 3;
+
+    const match = this.getCurrenMatch();
+    if (!match) {
+      return;
+    }
+    const matchPlayers = match?.getPlayers();
+    if (!matchPlayers) {
+      return;
+    }
+
+    const left = match.getPlayer('left');
+    const right = match.getPlayer('right');
+
+    const tournamentPlayers = this.players.filter(p => p.id === left || p.id === right);
+    console.log("tournamentPlayers as broadcasted: ", tournamentPlayers[0], tournamentPlayers[1]);
+
+    let timer = setInterval(() => {
+
+      sec--;
+      broadcast({ type: "announce_match", match: match, players: { left: tournamentPlayers[0], right: tournamentPlayers[1] }, seconds: sec }, null);
+
+      if (sec < 0) {
+        clearInterval(timer);
+        this.transitionTo(TournamentState.Concluding);
+      } else if (this.state === TournamentState.Playing) {
+        clearInterval(timer);
+      }
+
+    }, 1000);
+
+  }
+
+  announcePongMatch() {
+
+    const players = this.matches[this.round].getPlayers();
+    console.log(`${players[0]} will play against ${players[1]}! Please lock in now!`);
+    this.countdownAnnouncement();
+  }
+
+  transitionTo(newState: TournamentState) {
+
+    console.log(`Tournament transitioning from ${this.state} to ${newState}`);
+    this.state = newState;
+
+
+    switch (newState) {
+      case TournamentState.Enrolling:
+        console.log("Currently enrolling... waiting for players to fill up the subscribtion pool");
+        break;
+
+      case TournamentState.Scheduling:
+        if (this.round === 0 && this.schedulePongMatches()) {
+          this.transitionTo(TournamentState.Announcing);
+        }
+        else if (this.round === 2 && this.scheduleFinals()) {
+          this.transitionTo(TournamentState.Announcing);
+        }
+        else {
+          this.transitionTo(TournamentState.Concluding);
+        }
+        break;
+
+      case TournamentState.Announcing:
+        this.announcePongMatch();
+        break;
+
+      case TournamentState.Playing:
+        console.log("Toggle renderer, play till one wins");
+        break;
+
+      case TournamentState.Concluding:
+        console.log("this.round before crash: ", this.round);
+        console.log("this.matches before crash: ", this.matches);
+        if (this.matches[this.round] && !this.matches[this.round].isFinished()) {// Something happened or no player was on time in the announcemnt phase
+          console.error("Match couldn't start!");
+        }
+        else if (this.matches[this.round])
+          this.matches[this.round].saveMatch();
+
+        this.round++;
+        if (this.round === 1)
+          this.transitionTo(TournamentState.Announcing);
+        else if (this.round === 2)
+          this.transitionTo(TournamentState.Scheduling);
+        else if (this.round === 3) { // It's ogre
+          this.transitionTo(TournamentState.Enrolling);
+          this.matches.splice(0, this.matches.length);
+          this.players.splice(0, this.players.length);
+        }
+        break;
+    }
+
+
+  }
+
+  scheduleFinals(): boolean {
+
+    const matches = this.matches.filter(match => match.isFinished());
+    if (matches.length === 2) {
+      const w1Id = matches[0].getWinner();
+      const w2Id = matches[1].getWinner();
+      this.players = this.players.filter(p => p.id !== w1Id && p.id !== w2Id);
+      if (this.players[0] && this.players[1])
+        this.matches.push(new PongMatch(this.players[0].id, this.players[1].id));
+    }
+
+    return this.matches.length === 3;
+
+  }
+
+  schedulePongMatches(): boolean {
 
     let nums: number[] = [0, 1, 2, 3];
     let randomSequence: number[] = [];
@@ -63,9 +178,8 @@ export default class Tournament {
       this.matches.push(new PongMatch(this.players[r1].id, this.players[r2].id));
 
     }
-
     console.log("scheduled this.matches: ", this.matches);
-    return this.matches;
+    return this.matches.length === 2;
 
   }
 
@@ -78,6 +192,22 @@ export default class Tournament {
   getNumberOfPlayers(): number {
 
     return this.players.length;
+
+  }
+
+  getState(): TournamentState {
+
+    return this.state;
+
+  }
+
+  getCurrenMatch(): PongMatch | null {
+
+    if (this.matches.length === 0) {
+      console.error("In Tournament (getCurrentMatch()): No matches available!");
+      return null;
+    }
+    return this.matches[this.round];
 
   }
 

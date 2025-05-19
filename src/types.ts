@@ -62,7 +62,18 @@ declare global {
   }
 
 
+
+
 }
+
+export enum TournamentState {
+  Enrolling = "Enrolling",
+  Scheduling = "Scheduling",
+  Announcing = "Announcing",
+  Playing = "Playing",
+  Concluding = "Concluding",
+}
+
 export const DATABASE_URL = 'http://database_container:3000';
 
 

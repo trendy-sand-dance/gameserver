@@ -3,11 +3,13 @@ import { WebSocket } from '@fastify/websocket';
 import PongGame from '../pong/ponggame.js';
 import Tournament from '../pong/tournament.js';
 const DATABASE_URL = 'http://database_container:3000';
+import { TournamentState } from '../types.js';
 
 
 let clients = new Set<WebSocket>();
 let players = new Map<number, Player>();
-const pongGame = new PongGame(1, 4, 2); // Horizontal (4x2) table
+const pongGame = new PongGame(1, 4, 2); // id, w, h (Horizontal (4x2))
+// const pongGameTournament = new PongGame(2, 4, 2);
 const pongTournament = new Tournament();
 
 export function broadcast(message, currentClient: WebSocket | null) {
@@ -137,8 +139,7 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
       if (tournamentPlayer) {
         pongTournament.subscribe(tournamentPlayer);
         if (pongTournament.isTournamentFull()) {
-          const matches = pongTournament.schedulePongMatches();
-          broadcast({ type: "tournament_match_schedule", matches: Array.from(matches.entries()) }, null);
+          pongTournament.transitionTo(TournamentState.Scheduling);
         }
       }
     }
