@@ -8,8 +8,8 @@ import { TournamentState } from '../types.js';
 
 let clients = new Set<WebSocket>();
 let players = new Map<number, Player>();
-const pongGame = new PongGame(1, 4, 2); // id, w, h (Horizontal (4x2))
-// const pongGameTournament = new PongGame(2, 4, 2);
+const pongGame = new PongGame(1, 4, 2, false); // id, w, h (Horizontal (4x2))
+const pongGameTournament = new PongGame(2, 4, 2, true);
 const pongTournament = new Tournament();
 
 export function broadcast(message, currentClient: WebSocket | null) {
@@ -30,7 +30,7 @@ async function syncPlayersDB() {
 
   try {
 
-    console.log("Syncing players...", players);
+    // console.log("Syncing players...", players);
 
     //TODO: sync players in a batch.
     for (const [id, player] of players) {
@@ -43,9 +43,9 @@ async function syncPlayersDB() {
         throw { code: 500, message: "Failed to upate user" };
       }
     }
-    console.log("Succesfully synced players!");
+    // console.log("Succesfully synced players!");
   } catch (error) {
-    console.error(`sync db error`, error);
+    // console.error(`sync db error`, error);
   }
   setTimeout(syncPlayersDB, 15000);
 }
@@ -85,7 +85,15 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
           client.send(JSON.stringify({ type: "current_pong_state", pongState: pongGame.getPongState() }));
         }
         else {
-          client.send(JSON.stringify({ type: "initialize_pong", left: pongGame.getPlayer('left'), right: pongGame.getPlayer('right') }));
+
+          const pl = pongGame.getPlayer('left');
+          const pr = pongGame.getPlayer('right');
+
+          if (pl)
+            client.send(JSON.stringify({ type: "initialize_pong", left: pl, right: null }));
+          else if (pr)
+            client.send(JSON.stringify({ type: "initialize_pong", left: null, right: pr }));
+
           console.log("initialize_pong, ", pongGame.getPlayer('left'), pongGame.getPlayer('right'));
         }
       }
@@ -128,11 +136,18 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
     }
 
     if (data.type === "paddle_move") {
-      pongGame.handlePaddle(data.side, data.direction);
-      broadcast({ type: "pong_update", pongState: pongGame.getPaddleState() }, null);
+      if (data.tournament) {
+        pongGameTournament.handlePaddle(data.side, data.direction);
+        broadcast({ type: "pong_update_tournament", pongState: pongGame.getPaddleState() }, null);
+      }
+      else {
+        pongGame.handlePaddle(data.side, data.direction);
+        broadcast({ type: "pong_update", pongState: pongGame.getPaddleState() }, null);
+      }
     }
 
     // Tournament stuff
+    // Subscribtion pole
     if (data.type == "tournament_join") {
       console.log("(On message) Server received: ", data);
       const tournamentPlayer: TournamentPlayer = data.tournamentPlayer;
@@ -150,6 +165,31 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
       if (tournamentPlayer) {
         pongTournament.unsubscribe(tournamentPlayer);
       }
+    }
+
+
+    // Player attempts to ready up tournament side
+    if (data.type === "join_pong_tournament") {
+      console.log("(On message) Server received: ", data);
+      const pongPlayer = pongGameTournament.assignPlayer(data.pongPlayer, client);
+
+      if (pongPlayer) {
+        client.send(JSON.stringify({ type: "confirm_pong_player_tournament", pongPlayer }));
+        broadcast({ type: "player_joined_pong_tournament", pongPlayer }, client);
+        if (pongGameTournament.playersAreReady()) {
+          pongGameTournament.countdownTournamentTimer(pongTournament);
+        }
+      }
+      else {
+        console.log("assigning player to table failed!");
+      }
+    }
+
+    if (data.type === "leave_pong_tournament") {
+      console.log("(On message) Server received: ", data);
+      const pongPlayer: PongPlayer = data.pongPlayer;
+      pongGameTournament.removePlayer(pongPlayer);
+      broadcast({ type: "leave_pong_tournament", pongPlayer }, null);
     }
 
   });

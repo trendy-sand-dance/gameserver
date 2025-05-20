@@ -61,9 +61,6 @@ declare global {
     position?: Vector2,
   }
 
-
-
-
 }
 
 export enum TournamentState {

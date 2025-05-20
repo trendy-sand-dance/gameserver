@@ -2,7 +2,9 @@ import { WebSocket } from '@fastify/websocket';
 import Paddle from './paddle.js';
 import Ball from './ball.js';
 import PongMatch from './pongmatch.js';
+import Tournament from './tournament.js';
 import { broadcast } from '../controllers/wsGame.controller.js';
+import { TournamentState } from '../types.js';
 
 
 function isWithinRange(value: number, target: number, range: number) {
@@ -27,16 +29,19 @@ export default class PongGame {
   private tableWidth: number;
   private tableHeight: number;
 
+  // Match data
   private inProgress: boolean = false;
   private startTimer: number = 3;
   private scoreLimit: number = 1;
 
-  private matches : PongMatch[] = [];
+  private matches: PongMatch[] = [];
+  private isTournament: boolean = false;
 
-  constructor(table: number, width: number, height: number) {
+  constructor(table: number, width: number, height: number, isTournament: boolean) {
     this.table = table;
     this.tableWidth = width;
     this.tableHeight = height;
+    this.isTournament = isTournament;
   }
 
   assignPlayer(player: PongPlayer, client: WebSocket): PongPlayer | null {
@@ -73,6 +78,29 @@ export default class PongGame {
 
   }
 
+  async startTournamentGame(tournament: Tournament) {
+
+    if (this.clients['left'] && this.clients['right'] && this.players['left'] && this.players['right']) {
+      this.clients['left'].send(JSON.stringify({ type: "start_pong_game_tournament" }));
+      this.clients['right'].send(JSON.stringify({ type: "start_pong_game_tournament" }));
+      this.ball.respawn({ x: 2, y: 1 }, 0.05, null);
+      this.inProgress = true;
+
+      const match = tournament.getCurrentMatch();
+
+      if (this.matches.length === 0 && match) {
+
+        await match.initialize();
+        this.matches.push(match);
+      }
+      tournament.transitionTo(TournamentState.Playing);
+      this.startTournamentGameloop(tournament);
+
+    }
+
+
+  }
+
   async stopGame() {
 
     this.inProgress = false;
@@ -83,8 +111,8 @@ export default class PongGame {
     this.clients['right'] = null;
 
     const match = this.matches.pop();
-    if (match) { 
-      await match.saveMatch();
+    if (match) {
+      await match.saveMatch(this.isTournament);
     }
 
   }
@@ -99,14 +127,14 @@ export default class PongGame {
     this.clients['right'] = null;
 
     const match = this.matches.pop();
-    if (match) { 
-      await match.saveMatch();
+    if (match) {
+      await match.saveMatch(this.isTournament);
     }
 
   }
 
 
-  setInProgress(state : boolean) {
+  setInProgress(state: boolean) {
 
     this.inProgress = state;
 
@@ -139,6 +167,27 @@ export default class PongGame {
 
   }
 
+  countdownTournamentTimer(tournament: Tournament) {
+
+    let sec: number = this.startTimer;
+
+    let timer = setInterval(() => {
+
+      sec--;
+      if (this.clients['left'] && this.clients['right']) {
+        this.clients['left'].send(JSON.stringify({ type: "countdown_pong_tournament", timer: sec }));
+        this.clients['right'].send(JSON.stringify({ type: "countdown_pong_tournament", timer: sec }));
+      }
+
+      if (sec < 0) {
+        clearInterval(timer);
+        this.startTournamentGame(tournament);
+      }
+
+    }, 1000);
+
+  }
+
   startGameloop() {
 
     const ticker = setInterval(() => {
@@ -153,6 +202,27 @@ export default class PongGame {
 
       }
       else {
+        clearInterval(ticker);
+      }
+    }, 33); // 33 milliseconds = ~ 30 frames per sec
+
+  }
+
+  startTournamentGameloop(tournament: Tournament) {
+
+    const ticker = setInterval(() => {
+
+      if (this.isInProgress()) {
+        this.handleBall();
+        let pos: Vector2 | undefined = this.getBallState();
+
+        if (pos) {
+          broadcast({ type: "ball_move_tournament", ball: pos }, null);
+        }
+
+      }
+      else {
+        tournament.transitionTo(TournamentState.Concluding);
         clearInterval(ticker);
       }
     }, 33); // 33 milliseconds = ~ 30 frames per sec
@@ -175,7 +245,7 @@ export default class PongGame {
 
   getClient(side: 'left' | 'right') {
 
-      return this.clients[side];
+    return this.clients[side];
 
   }
 
@@ -211,8 +281,14 @@ export default class PongGame {
       }
       else {
         this.players[side].score++;
-        this.clients['left']?.send(JSON.stringify({ type: "score_update", side: side, score: this.players[side].score }));
-        this.clients['right']?.send(JSON.stringify({ type: "score_update", side: side, score: this.players[side].score }));
+        if (this.isTournament) {
+          this.clients['left']?.send(JSON.stringify({ type: "score_update_tournament", side: side, score: this.players[side].score }));
+          this.clients['right']?.send(JSON.stringify({ type: "score_update_tournament", side: side, score: this.players[side].score }));
+        }
+        else {
+          this.clients['left']?.send(JSON.stringify({ type: "score_update", side: side, score: this.players[side].score }));
+          this.clients['right']?.send(JSON.stringify({ type: "score_update", side: side, score: this.players[side].score }));
+        }
         this.matches[0].update(this.players['left']!.score, this.players['right']!.score);
         if (this.players[side].score >= this.scoreLimit) {
           this.finishGame();
@@ -220,7 +296,7 @@ export default class PongGame {
         else {
           this.setInProgress(false);
           this.countdownTimer();
-          }
+        }
       }
     }
     if (ballPos.y <= 0 || ballPos.y >= this.tableHeight) { // bounceY

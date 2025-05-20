@@ -44,9 +44,9 @@ export default class Tournament {
 
   countdownAnnouncement() {
 
-    let sec: number = 3;
+    let sec: number = 60;
 
-    const match = this.getCurrenMatch();
+    const match = this.getCurrentMatch();
     if (!match) {
       return;
     }
@@ -121,8 +121,8 @@ export default class Tournament {
         if (this.matches[this.round] && !this.matches[this.round].isFinished()) {// Something happened or no player was on time in the announcemnt phase
           console.error("Match couldn't start!");
         }
-        else if (this.matches[this.round])
-          this.matches[this.round].saveMatch();
+        // else if (this.matches[this.round])
+        //   this.matches[this.round].saveMatch();
 
         this.round++;
         if (this.round === 1)
@@ -133,6 +133,8 @@ export default class Tournament {
           this.transitionTo(TournamentState.Enrolling);
           this.matches.splice(0, this.matches.length);
           this.players.splice(0, this.players.length);
+          this.round = 0;
+          this.isFull = false;
         }
         break;
     }
@@ -201,7 +203,7 @@ export default class Tournament {
 
   }
 
-  getCurrenMatch(): PongMatch | null {
+  getCurrentMatch(): PongMatch | null {
 
     if (this.matches.length === 0) {
       console.error("In Tournament (getCurrentMatch()): No matches available!");

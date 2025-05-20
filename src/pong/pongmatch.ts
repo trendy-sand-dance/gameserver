@@ -89,7 +89,7 @@ export default class PongMatch {
 
   }
 
-  async saveMatch() {
+  async saveMatch(isTournament: boolean) {
 
     try {
 
@@ -108,7 +108,10 @@ export default class PongMatch {
         throw { code: 500, message: "Failed to update user" };
       }
 
-      broadcast({ type: "finish_game", winnerId: winnerId }, null);
+      if (isTournament)
+        broadcast({ type: "finish_game_tournament", winnerId: winnerId }, null);
+      else
+        broadcast({ type: "finish_game", winnerId: winnerId }, null);
       this.finished = true;
 
     }
