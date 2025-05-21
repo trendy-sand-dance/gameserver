@@ -13,11 +13,12 @@ interface Scores {
 
 export default class PongMatch {
 
-  private matchId : number = 0;
-  private playerIDs : PlayerIDs = {left: 0, right: 0};
-  private scores : Scores = {left: 0, right: 0};
+  private matchId: number = 0;
+  private playerIDs: PlayerIDs = { left: 0, right: 0 };
+  private scores: Scores = { left: 0, right: 0 };
+  private finished: boolean = false;
 
-  constructor(leftPlayerId : number, rightPlayerId : number) {
+  constructor(leftPlayerId: number, rightPlayerId: number) {
 
     this.playerIDs['left'] = leftPlayerId;
     this.playerIDs['right'] = rightPlayerId;
@@ -37,12 +38,12 @@ export default class PongMatch {
         throw { code: 500, message: "Failed to upate user" };
       }
 
-      const responseData = await response.json() as {message : string, matchId : number};
+      const responseData = await response.json() as { message: string, matchId: number };
       console.log("here's the message: ", responseData.message, ", here's the matchId: ", responseData.matchId);
       this.matchId = responseData.matchId;
       console.log("this.matchID: ", this.matchId);
 
-    } 
+    }
     catch (error) {
 
       console.error(`Couldn't create new match!`, error);
@@ -51,19 +52,49 @@ export default class PongMatch {
 
   }
 
-  update(scoreLeft : number, scoreRight : number) {
+  update(scoreLeft: number, scoreRight: number) {
 
     this.scores['left'] = scoreLeft;
     this.scores['right'] = scoreRight;
 
   }
 
-  async saveMatch() {
+  getPlayer(side: 'left' | 'right'): number {
+
+    return this.playerIDs[side];
+
+  }
+
+  getPlayers(): number[] {
+
+    return [this.playerIDs['left'], this.playerIDs['right']];
+
+  }
+
+  getWinner(): number {
+
+    return this.scores['left'] > this.scores['right'] ? this.playerIDs['left'] : this.playerIDs['right'];
+
+  }
+
+  getLoser(): number {
+
+    return this.scores['left'] < this.scores['right'] ? this.playerIDs['left'] : this.playerIDs['right'];
+
+  }
+
+  isFinished(): boolean {
+
+    return this.finished;
+
+  }
+
+  async saveMatch(isTournament: boolean) {
 
     try {
 
-      const winnerId = this.scores['left'] > this.scores['right'] ? this.playerIDs['left'] : this.playerIDs['right'];
-      const loserId = this.scores['left'] < this.scores['right'] ? this.playerIDs['left'] : this.playerIDs['right'];
+      const winnerId = this.getWinner();
+      const loserId = this.getLoser();
       const matchId = this.matchId;
 
       console.log("this.matchID before sending to db", matchId);
@@ -77,7 +108,11 @@ export default class PongMatch {
         throw { code: 500, message: "Failed to update user" };
       }
 
-      broadcast({ type: "finish_game", winnerId: winnerId}, null);
+      if (isTournament)
+        broadcast({ type: "finish_game_tournament", winnerId: winnerId }, null);
+      else
+        broadcast({ type: "finish_game", winnerId: winnerId }, null);
+      this.finished = true;
 
     }
     catch (error) {

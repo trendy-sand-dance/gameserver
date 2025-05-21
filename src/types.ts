@@ -31,6 +31,15 @@ declare global {
     side: string,
   }
 
+  interface TournamentPlayer {
+    id: number,
+    username: string,
+    avatar: string,
+    wins: number,
+    losses: number,
+    local: boolean,
+  }
+
   interface Player { // Related to ServerPlayer (on Client side)
     id: number,
     username: string,
@@ -52,8 +61,16 @@ declare global {
     position?: Vector2,
   }
 
-
 }
+
+export enum TournamentState {
+  Enrolling = "Enrolling",
+  Scheduling = "Scheduling",
+  Announcing = "Announcing",
+  Playing = "Playing",
+  Concluding = "Concluding",
+}
+
 export const DATABASE_URL = 'http://database_container:3000';
 
 

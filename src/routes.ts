@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { wsGameController } from './controllers/wsGame.controller.js';
+import { getTournamentPlayers, wsGameController } from './controllers/wsGame.controller.js';
 
 export async function routes(fastify: FastifyInstance) {
   fastify.get('/', async function(request: FastifyRequest, reply: FastifyReply) {
@@ -7,4 +7,5 @@ export async function routes(fastify: FastifyInstance) {
   });
 
   fastify.get('/ws-gameserver', { websocket: true }, wsGameController);
+  fastify.get('/getTournamentPlayers', getTournamentPlayers);
 };
