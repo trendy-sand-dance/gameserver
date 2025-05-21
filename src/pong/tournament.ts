@@ -79,9 +79,14 @@ export default class Tournament {
 
   announcePongMatch() {
 
-    const players = this.matches[this.round].getPlayers();
-    console.log(`${players[0]} will play against ${players[1]}! Please lock in now!`);
-    this.countdownAnnouncement();
+    if (this.matches[this.round].getPlayers()) {
+      const players = this.matches[this.round].getPlayers();
+      console.log(`${players[0]} will play against ${players[1]}! Please lock in now!`);
+      this.countdownAnnouncement();
+    }
+    else {
+      console.error("Couldn't announcePongMatch() due to current match being unavailable");
+    }
   }
 
   transitionTo(newState: TournamentState) {
@@ -112,18 +117,12 @@ export default class Tournament {
         break;
 
       case TournamentState.Playing:
-        console.log("Toggle renderer, play till one wins");
         break;
 
       case TournamentState.Concluding:
-        console.log("this.round before crash: ", this.round);
-        console.log("this.matches before crash: ", this.matches);
         if (this.matches[this.round] && !this.matches[this.round].isFinished()) {// Something happened or no player was on time in the announcemnt phase
           console.error("Match couldn't start!");
         }
-        // else if (this.matches[this.round])
-        //   this.matches[this.round].saveMatch();
-
         this.round++;
         if (this.round === 1)
           this.transitionTo(TournamentState.Announcing);

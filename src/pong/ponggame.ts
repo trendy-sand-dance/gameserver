@@ -56,6 +56,8 @@ export default class PongGame {
     this.players[player.side] = player;
     this.clients[player.side] = client;
 
+    console.log("assign player: this.players[player.side]: ", this.players[player.side]);
+
     return this.players[player.side];
   }
 
@@ -262,6 +264,8 @@ export default class PongGame {
 
       this.paddles[side].update(input);
       this.players[side].paddleY = this.paddles[side].getPaddleY();
+
+      console.log("handle paddleY update: ", this.players[side].paddleY);
     }
 
   }
@@ -330,6 +334,7 @@ export default class PongGame {
 
   getPaddleState() {
 
+    console.log("getPaddleState() player left and right: ", this.players['left'], this.players['right']);
     if (this.players['right'] && this.players['left']) {
 
       return {

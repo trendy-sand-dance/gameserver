@@ -136,9 +136,10 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
     }
 
     if (data.type === "paddle_move") {
+      // console.log("(On message) Server received: ", data);
       if (data.tournament) {
         pongGameTournament.handlePaddle(data.side, data.direction);
-        broadcast({ type: "pong_update_tournament", pongState: pongGame.getPaddleState() }, null);
+        broadcast({ type: "pong_update_tournament", pongState: pongGameTournament.getPaddleState() }, null);
       }
       else {
         pongGame.handlePaddle(data.side, data.direction);
