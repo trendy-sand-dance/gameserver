@@ -79,8 +79,8 @@ export default class Tournament {
 
   announcePongMatch() {
 
-    if (this.matches[this.round].getPlayers()) {
-      const players = this.matches[this.round].getPlayers();
+    const players = this.matches[this.round].getPlayers();
+    if (players) {
       console.log(`${players[0]} will play against ${players[1]}! Please lock in now!`);
       this.countdownAnnouncement();
     }
@@ -147,9 +147,10 @@ export default class Tournament {
     if (matches.length === 2) {
       const w1Id = matches[0].getWinner();
       const w2Id = matches[1].getWinner();
-      this.players = this.players.filter(p => p.id !== w1Id && p.id !== w2Id);
-      if (this.players[0] && this.players[1])
-        this.matches.push(new PongMatch(this.players[0].id, this.players[1].id));
+      this.players = this.players.filter(p => p.id === w1Id || p.id === w2Id);
+      if (this.players[0] && this.players[1]) {
+        this.matches.push(new PongMatch(this.players[0].id, this.players[1].id, true));
+      }
     }
 
     return this.matches.length === 3;
@@ -176,7 +177,7 @@ export default class Tournament {
       let r1 = randomSequence[i];
       let r2 = randomSequence[i + 1];
 
-      this.matches.push(new PongMatch(this.players[r1].id, this.players[r2].id));
+      this.matches.push(new PongMatch(this.players[r1].id, this.players[r2].id, false));
 
     }
     console.log("scheduled this.matches: ", this.matches);

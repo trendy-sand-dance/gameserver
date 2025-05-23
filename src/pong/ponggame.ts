@@ -70,7 +70,7 @@ export default class PongGame {
       this.inProgress = true;
 
       if (this.matches.length === 0) {
-        const match = new PongMatch(this.players['left'].id, this.players['right'].id);
+        const match = new PongMatch(this.players['left'].id, this.players['right'].id, false);
         await match.initialize();
         this.matches.push(match);
       }
@@ -273,10 +273,10 @@ export default class PongGame {
   handleBall() {
 
     let ballPos = this.ball.getPosition();
-    let side: string = ballPos.x < 2 ?  'left' : 'right';
-    let scorer: string = ballPos.x < 2 ?  'right' : 'left';
+    let side: 'left' | 'right' = ballPos.x < 2 ? 'left' : 'right';
+    let scorer: 'left' | 'right' = ballPos.x < 2 ? 'right' : 'left';
 
-    if (!this.players[side] || !this.clients[side])
+    if (!this.players[side] || !this.clients[side] || scorer === null)
       return;
 
     if (ballPos.x <= 0 || ballPos.x >= this.tableWidth) { // bounceX & scoring
@@ -284,9 +284,11 @@ export default class PongGame {
       if (this.paddles[side].collides(this.ball.getPosition().y)) {
         this.ball.bounceX();
       }
-      else {
+      else if (this.players[scorer]) {
         this.players[scorer].score++;
+
         console.log("Player scored!:", this.players[scorer]);
+
         if (this.isTournament) {
           this.clients['left']?.send(JSON.stringify({ type: "score_update_tournament", side: scorer, score: this.players[scorer].score }));
           this.clients['right']?.send(JSON.stringify({ type: "score_update_tournament", side: scorer, score: this.players[scorer].score }));
@@ -296,7 +298,8 @@ export default class PongGame {
           this.clients['right']?.send(JSON.stringify({ type: "score_update", side: scorer, score: this.players[scorer].score }));
         }
         if (this.matches[0])
-          this.matches[0].update(this.players['left']!.score, this.players['right']!.score);
+          this.matches[0].updateScoreById(this.players[scorer].id);
+        // this.matches[0].updateScore(scorer);
         if (this.players[scorer].score >= this.scoreLimit) {
           this.finishGame();
         }
