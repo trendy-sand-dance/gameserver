@@ -73,11 +73,19 @@ export default class PongMatch {
 
   getWinner(): number {
 
+    console.log("getWinner(), leftId", this.playerIDs['left'], ", score: ", this.scores['left']);
+    console.log("getWinner(), rightId", this.playerIDs['right'], ", score: ", this.scores['right']);
+    console.log("returning: ", this.scores['left'] > this.scores['right'] ? this.playerIDs['left'] : this.playerIDs['right']);
+
     return this.scores['left'] > this.scores['right'] ? this.playerIDs['left'] : this.playerIDs['right'];
 
   }
 
   getLoser(): number {
+
+    console.log("getLoser(), leftId", this.playerIDs['left'], ", score: ", this.scores['left']);
+    console.log("getLoser(), rightId", this.playerIDs['right'], ", score: ", this.scores['right']);
+    console.log("returning: ", this.scores['left'] < this.scores['right'] ? this.playerIDs['left'] : this.playerIDs['right']);
 
     return this.scores['left'] < this.scores['right'] ? this.playerIDs['left'] : this.playerIDs['right'];
 
@@ -97,12 +105,11 @@ export default class PongMatch {
       const loserId = this.getLoser();
       const matchId = this.matchId;
 
-      console.log("this.matchID before sending to db", matchId);
-      console.log("fetch url: ", `/saveMatch/${matchId}/${winnerId}/${loserId}`);
+      console.log("Saving match... winnerId, loserId: ", winnerId, loserId);
       const response = await fetch(`${DATABASE_URL}/saveMatch/${matchId}/${winnerId}/${loserId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ matchId: matchId, players: { winnerId: winnerId, loserId: loserId } })
+        body: JSON.stringify({ matchId: matchId, players: { winnerId: winnerId, loserId: loserId }, tournament: isTournament })
       });
       if (!response.ok) {
         throw { code: 500, message: "Failed to update user" };
