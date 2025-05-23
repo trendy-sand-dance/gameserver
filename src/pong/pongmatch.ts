@@ -17,11 +17,13 @@ export default class PongMatch {
   private playerIDs: PlayerIDs = { left: 0, right: 0 };
   private scores: Scores = { left: 0, right: 0 };
   private finished: boolean = false;
+  private isFinals: boolean = false;
 
-  constructor(leftPlayerId: number, rightPlayerId: number) {
+  constructor(leftPlayerId: number, rightPlayerId: number, finals: boolean) {
 
     this.playerIDs['left'] = leftPlayerId;
     this.playerIDs['right'] = rightPlayerId;
+    this.isFinals = finals;
 
   }
 
@@ -59,6 +61,24 @@ export default class PongMatch {
 
   }
 
+  updateScore(side: 'left' | 'right'): void {
+
+    console.log(`${side} scored, updating score from ${this.scores[side]}`);
+    this.scores[side]++;
+    console.log(`...to ${this.scores[side]}. Corresponding ID: ${this.playerIDs[side]}`);
+
+  }
+
+  updateScoreById(id: number): void {
+
+    if (this.playerIDs['left'] === id) {
+      this.scores['left']++;
+    } else if (this.playerIDs['right'] === id) {
+      this.scores['right']++;
+    }
+
+  }
+
   getPlayer(side: 'left' | 'right'): number {
 
     return this.playerIDs[side];
@@ -89,6 +109,12 @@ export default class PongMatch {
 
   }
 
+  setFinished(state: boolean): void {
+
+    this.finished = state;
+
+  }
+
   async saveMatch(isTournament: boolean) {
 
     try {
@@ -96,20 +122,20 @@ export default class PongMatch {
       const winnerId = this.getWinner();
       const loserId = this.getLoser();
       const matchId = this.matchId;
+      this.setFinished(true);
 
-      console.log("this.matchID before sending to db", matchId);
-      console.log("fetch url: ", `/saveMatch/${matchId}/${winnerId}/${loserId}`);
+      console.log("Saving match... winnerId, loserId: ", winnerId, loserId);
       const response = await fetch(`${DATABASE_URL}/saveMatch/${matchId}/${winnerId}/${loserId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ matchId: matchId, players: { winnerId: winnerId, loserId: loserId } })
+        body: JSON.stringify({ matchId: matchId, players: { winnerId: winnerId, loserId: loserId }, tournament: isTournament })
       });
       if (!response.ok) {
         throw { code: 500, message: "Failed to update user" };
       }
 
       if (isTournament)
-        broadcast({ type: "finish_game_tournament", winnerId: winnerId }, null);
+        broadcast({ type: "finish_game_tournament", winnerId: winnerId, finals: this.isFinals }, null);
       else
         broadcast({ type: "finish_game", winnerId: winnerId }, null);
       this.finished = true;
