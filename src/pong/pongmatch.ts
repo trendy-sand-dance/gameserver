@@ -97,6 +97,18 @@ export default class PongMatch {
 
   }
 
+  getWinnerScore() : number {
+
+    return this.scores['left'] > this.scores['right'] ? this.scores['left'] : this.scores['right'];
+
+  }
+
+  getLoserScore(): number {
+
+    return this.scores['left'] < this.scores['right'] ? this.scores['left'] : this.scores['right'];
+
+  }
+
   getLoser(): number {
 
     return this.scores['left'] < this.scores['right'] ? this.playerIDs['left'] : this.playerIDs['right'];
@@ -128,7 +140,7 @@ export default class PongMatch {
       const response = await fetch(`${DATABASE_URL}/saveMatch/${matchId}/${winnerId}/${loserId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ matchId: matchId, players: { winnerId: winnerId, loserId: loserId }, tournament: isTournament })
+        body: JSON.stringify({ matchId: matchId, players: { winnerId: winnerId, loserId: loserId }, tournament: isTournament, highScore: this.getWinnerScore(), lowScore: this.getLoserScore() })
       });
       if (!response.ok) {
         throw { code: 500, message: "Failed to update user" };
