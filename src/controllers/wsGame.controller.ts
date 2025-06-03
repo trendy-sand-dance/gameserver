@@ -109,6 +109,10 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
       broadcast(data, client);
     }
 
+    if (data.type === "disconnection") {
+      broadcast({ type: "disconnect_player", id: data.id }, client);
+    }
+
     // Pong Game
 
     if (data.type === "join_pong") {
