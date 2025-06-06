@@ -151,6 +151,13 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
       }
     }
 
+    // Game Invite
+    //
+    if (data.type == "game_invite") {
+      console.log("Incoming Invite message: ", data);
+      broadcast({ type: "game_invite", id: data.id }, client);
+    }
+
     // Tournament stuff
     // Subscribtion pole
     if (data.type == "tournament_join") {
