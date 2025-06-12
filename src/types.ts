@@ -71,6 +71,6 @@ export enum TournamentState {
   Concluding = "Concluding",
 }
 
-export const DATABASE_URL = 'http://database_container:3000';
+export const DATABASE_URL = 'https://database_container:3000';
 
 

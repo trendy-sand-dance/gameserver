@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { WebSocket } from '@fastify/websocket';
 import PongGame from '../pong/ponggame.js';
 import Tournament from '../pong/tournament.js';
-const DATABASE_URL = 'http://database_container:3000';
+const DATABASE_URL = 'https://database_container:3000';
 import { TournamentState } from '../types.js';
 
 
