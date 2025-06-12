@@ -9,6 +9,10 @@ import pluginWebsocket from "@fastify/websocket";
 const ADDRESS: string = process.env.LISTEN_ADDRESS ? process.env.LISTEN_ADDRESS : '0.0.0.0';
 const PORT: number = process.env.LISTEN_PORT ? parseInt(process.env.LISTEN_PORT, 10) : 3000;
 
+import fs from 'fs';
+const key =  './setup/server.key';
+const cert = './setup/server.crt';
+
 const fastify: FastifyInstance = Fastify({
   logger: {
     transport: {
@@ -20,7 +24,11 @@ const fastify: FastifyInstance = Fastify({
       }
     },
     level: 'info'
-  }
+  },
+	https: {
+	key: fs.readFileSync(key),
+	cert: fs.readFileSync(cert),
+   }
 });
 
 fastify.register(pluginCORS), {

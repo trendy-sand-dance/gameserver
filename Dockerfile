@@ -9,6 +9,8 @@ RUN npm install -D
 
 COPY . .
 
+RUN apt-get update -y && apt-get install -y openssl
+
 ARG LISTEN_ADDRESS="0.0.0.0"
 ARG LISTEN_PORT=8003
 
@@ -28,10 +30,14 @@ RUN npm install --only=production
 
 COPY --from=build-stage /app/dist ./dist
 
+RUN ./setup/makeCerts.sh
+
 CMD ["npm", "run", "start"]
 
 
 # Stage 2: EXPERIMENT (development)
 FROM build-stage AS development
+
+RUN ./setup/makeCerts.sh
 
 CMD ["npm", "run", "dev"]
