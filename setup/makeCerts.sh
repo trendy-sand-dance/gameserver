@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "creating self-signed SSl certificates"
+echo "creating self-signed SSl certificates with openssl"
 
 openssl	req \
 		-x509 \

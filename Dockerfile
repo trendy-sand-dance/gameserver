@@ -33,6 +33,7 @@ RUN npm install --only=production
 COPY --from=build-stage /app/dist ./dist
 
 RUN ./setup/makeCerts.sh
+#RUN ./setup/makeMkcert.sh
 
 CMD ["npm", "run", "start"]
 
@@ -41,5 +42,6 @@ CMD ["npm", "run", "start"]
 FROM build-stage AS development
 
 RUN ./setup/makeCerts.sh
+#RUN ./setup/makeMkcert.sh
 
 CMD ["npm", "run", "dev"]
