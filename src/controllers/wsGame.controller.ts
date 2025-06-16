@@ -62,11 +62,9 @@ export async function getTournamentPlayers(request: FastifyRequest, reply: Fasti
 
 export async function wsGameController(client: WebSocket, request: FastifyRequest) {
 
-
   clients.add(client);
   let playerId: number = -1;
   let currentPlayer: Player | null = null;
-
 
   client.on('message', async (message) => {
     const data = JSON.parse(message.toString());
