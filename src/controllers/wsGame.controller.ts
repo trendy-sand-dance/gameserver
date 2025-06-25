@@ -155,7 +155,7 @@ export async function wsGameController(client: WebSocket, request: FastifyReques
     //
     if (data.type == "game_invite") {
       console.log("Incoming Invite message: ", data);
-      broadcast({ type: "game_invite", id: data.id }, client);
+      broadcast({ type: "game_invite", fromId: data.fromId, toId: data.toId }, client);
     }
 
     // Tournament stuff
